@@ -8,6 +8,9 @@ import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
 import * as tasks from 'aws-cdk-lib/aws-stepfunctions-tasks';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as fs from 'fs';
+import * as events from 'aws-cdk-lib/aws-events';
+import * as apigwv2 from '@aws-cdk/aws-apigatewayv2-alpha';
+import { WebSocketLambdaIntegration } from '@aws-cdk/aws-apigatewayv2-integrations-alpha';
 
 export class DreedLectureAppStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -23,7 +26,7 @@ export class DreedLectureAppStack extends cdk.Stack {
     });
 
     // Create a state machine role that will allow invoking the lambda defined above and writing to the ddb table defined above
-    const stateMachineRole = new iam.Role(this, 'StateMachineRole', {
+    const processSurveySfnRole = new iam.Role(this, 'StateMachineRole', {
       assumedBy: new iam.ServicePrincipal('states.amazonaws.com'),
       inlinePolicies: {
         'ComprehendPolicy': new iam.PolicyDocument({
@@ -36,6 +39,14 @@ export class DreedLectureAppStack extends cdk.Stack {
           ]
         })
       }
+    });
+
+    const updateSiteSfnRole = new iam.Role(this, 'UpdateSiteStateMachineRole', {
+      assumedBy: new iam.ServicePrincipal('states.amazonaws.com'),
+    });
+
+    const calculateStatsSfnRole = new iam.Role(this, 'CalculateStatsStateMachineRole', {
+      assumedBy: new iam.ServicePrincipal('states.amazonaws.com'),
     });
 
     // Grant permission to use Amazon Textract
@@ -60,29 +71,124 @@ export class DreedLectureAppStack extends cdk.Stack {
       ]
     });
 
-    docParserLambda.grantInvoke(stateMachineRole);
+    docParserLambda.grantInvoke(processSurveySfnRole);
     bucket.grantRead(docParserLambda);    
 
     // DynamoDB Table
-    const table = new dynamodb.Table(this, 'SurveyAppTable', {
+    const surveyTable = new dynamodb.Table(this, 'SurveyAppTable', {
       partitionKey: { name: 'pk', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'sk', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST
     });
 
-    table.grantWriteData(stateMachineRole);
+    surveyTable.grantWriteData(processSurveySfnRole);
+    surveyTable.grantReadData(calculateStatsSfnRole);
+
+    const connectionsTable = new dynamodb.Table(this, 'ConnectionsTable', {
+      partitionKey: { name: 'connectionId', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST
+    });
+
+    connectionsTable.grantReadData(updateSiteSfnRole);
+
+    // Event bus
+    const eventBus = new events.EventBus(this, 'DreedSurveyAppEventBus', {});
+    eventBus.grantPutEventsTo(processSurveySfnRole);
+    eventBus.grantPutEventsTo(calculateStatsSfnRole);
 
     // Load statemachines/survey-processor.asl.json file contents from disk
     const surveyProcessorStateMachineDefinition = fs.readFileSync('statemachines/survey-processor.asl.json').toString();
 
     // Step function
-    const cfnStateMachine = new sfn.CfnStateMachine(this, 'DocParserStateMachine', {
+    const processSurveySfn = new sfn.CfnStateMachine(this, 'DocParserStateMachine', {
       definitionString: surveyProcessorStateMachineDefinition,
       definitionSubstitutions: {
-        TableName: table.tableName,
-        DocParserLambda: docParserLambda.functionArn
+        TableName: surveyTable.tableName,
+        DocParserLambda: docParserLambda.functionArn,
+        EventBusName: eventBus.eventBusName
       },
-      roleArn: stateMachineRole.roleArn
+      roleArn: processSurveySfnRole.roleArn
     });
+
+    // Update Site Step Function
+    const updateSiteStateMachineDefinition = fs.readFileSync('statemachines/update-site.asl.json').toString();
+
+    // $connect handler Lambda
+    const connectHandler = new lambda.Function(this, 'ConnectHandler', { 
+      runtime: lambda.Runtime.NODEJS_LATEST,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset('lambda/connect-handler'),
+      environment: {
+        TableName: connectionsTable.tableName,
+        EventBusName: eventBus.eventBusName
+      }
+    });
+
+    eventBus.grantPutEventsTo(connectHandler);
+
+    // $disconnect handler Lambda
+    const disconnectHandler = new lambda.Function(this, 'DisconnectHandler', {
+      runtime: lambda.Runtime.NODEJS_LATEST,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset('lambda/disconnect-handler'),
+      environment: {
+        TableName: connectionsTable.tableName
+      }
+    });
+
+    connectionsTable.grantWriteData(connectHandler);
+    connectionsTable.grantWriteData(disconnectHandler);
+
+    // API Gateway WSS API
+    const webSocketApi = new apigwv2.WebSocketApi(this, 'dreedSurveyAppWebSocketApi');
+    const wssStage = new apigwv2.WebSocketStage(this, 'testStage', {
+      webSocketApi,
+      stageName: 'test',
+      autoDeploy: true,
+    });
+    
+    webSocketApi.addRoute('$connect', {
+      integration: new WebSocketLambdaIntegration('$connect', connectHandler),
+    });
+    webSocketApi.addRoute('$disconnect', {
+      integration: new WebSocketLambdaIntegration('$disconnect', disconnectHandler),
+    });
+
+    // Update Site Step function
+    const cfnUpdateSiteStateMachine = new sfn.CfnStateMachine(this, 'UpdateSiteStateMachine', {
+      definitionString: updateSiteStateMachineDefinition,
+      definitionSubstitutions: {
+        TableName: connectionsTable.tableName,
+        WssEndpoint: webSocketApi.apiEndpoint,
+        WssStageName: wssStage.stageName,
+        BucketName: bucket.bucketName
+      },
+      roleArn: updateSiteSfnRole.roleArn
+    });
+
+    // Calculate stats step function
+    const calculateStatsStateMachineDefinition = fs.readFileSync('statemachines/calculate-stats.asl.json').toString();
+
+    const calculateStatsStateMachine = new sfn.CfnStateMachine(this, 'CalculateStatsStateMachine', {
+      definitionString: calculateStatsStateMachineDefinition,
+      definitionSubstitutions: {
+        TableName: surveyTable.tableName,
+        EventBusName: eventBus.eventBusName
+      },
+      roleArn: processSurveySfnRole.roleArn
+    });
+
+    // Calculate stats Lambda
+    const calculateStatsLambda = new lambda.Function(this, 'CalculateStatsLambda', { 
+      runtime: lambda.Runtime.NODEJS_LATEST,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset('lambda/calculate-stats'),
+      environment: {
+        SurveyTableName: surveyTable.tableName
+      }
+    });
+
+    surveyTable.grantReadData(calculateStatsLambda);
+    calculateStatsLambda.grantInvoke(calculateStatsSfnRole);
   }
 }

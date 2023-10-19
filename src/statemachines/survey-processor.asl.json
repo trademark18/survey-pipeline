@@ -79,6 +79,21 @@
           }
         }
       },
+      "Next": "EventBridge PutEvents"
+    },
+    "EventBridge PutEvents": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "Detail.$": "$",
+            "DetailType": "survey-processed",
+            "EventBusName": "${EventBusName}",
+            "Source": "doc-parser"
+          }
+        ]
+      },
       "End": true
     }
   }

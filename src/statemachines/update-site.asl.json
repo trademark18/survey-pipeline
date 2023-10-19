@@ -1,0 +1,45 @@
+{
+  "Comment": "A description of my state machine",
+  "StartAt": "Get Connection Ids",
+  "States": {
+    "Get Connection Ids": {
+      "Type": "Task",
+      "Parameters": {
+        "TableName": "${TableName}"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:scan",
+      "Next": "Map"
+    },
+    "Map": {
+      "Type": "Map",
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "INLINE"
+        },
+        "StartAt": "API Gateway Invoke",
+        "States": {
+          "API Gateway Invoke": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::apigateway:invoke",
+            "Parameters": {
+              "ApiEndpoint": "${WssEndpoint}",
+              "Method": "POST",
+              "Stage": "${WssStageName}",
+              "Path.$": "States.Format('/@connections/{}', $.connectionId.S)",
+              "RequestBody": {
+                "Payload.$": "$.detail"
+              },
+              "AuthType": "IAM_ROLE"
+            },
+            "End": true
+          }
+        }
+      },
+      "End": true,
+      "ItemSelector": {
+        "connectionId.$": "$$.Map.Item.Value.connectionId.S",
+        "detail.$": "$.detail"
+      }
+    }
+  }
+}
