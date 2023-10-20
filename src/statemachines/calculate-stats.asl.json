@@ -1,0 +1,55 @@
+{
+  "Comment": "A description of my state machine",
+  "StartAt": "Get All Results",
+  "States": {
+    "Get All Results": {
+      "Type": "Task",
+      "Parameters": {
+        "TableName": "${SurveyTableName}"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:scan",
+      "Next": "Calculate Stats"
+    },
+    "Calculate Stats": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "OutputPath": "$.Payload",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "${CalculateStatsLambdaArn}"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Raise: Stats Updated"
+    },
+    "Raise: Stats Updated": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "Detail": {
+              "Message": "Stats have been updated",
+              "Stats.$": "$"
+            },
+            "DetailType": "stats-updated",
+            "EventBusName": "${EventBusName}",
+            "Source": "survey-app"
+          }
+        ]
+      },
+      "End": true
+    }
+  }
+}
