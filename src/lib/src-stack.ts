@@ -260,5 +260,37 @@ export class DreedLectureAppStack extends cdk.Stack {
         },
       ],
     });
+
+    // Add a role allowing an EventBridge rule to trigger the update site state machine
+    const updateSiteTriggerRole = new iam.Role(this, 'UpdateSiteTriggerRole', {
+      assumedBy: new iam.ServicePrincipal('events.amazonaws.com'),
+      inlinePolicies: {
+        StepFunctionsPolicy: new iam.PolicyDocument({
+          statements: [
+            new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: ['states:StartExecution'],
+              resources: [cfnUpdateSiteStateMachine.attrArn],
+            }),
+          ],
+        }),
+      },
+    });
+
+    // Add EventBridge rule to trigger update site state machine on "stats-updated" event
+    const updateSiteRule = new events.CfnRule(this, 'UpdateSiteRule', {
+      eventBusName: eventBus.eventBusName,
+      roleArn: updateSiteTriggerRole.roleArn,
+      eventPattern: {
+        source: ['survey-app'],
+        detailType: ['stats-updated'],
+      },
+      targets: [
+        {
+          arn: cfnUpdateSiteStateMachine.attrArn,
+          id: 'UpdateSite',
+        },
+      ],
+    });
   }
 }
