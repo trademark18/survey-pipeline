@@ -172,6 +172,8 @@ export class DreedLectureAppStack extends cdk.Stack {
       ),
     });
 
+    const wssApiEndpoint = `${webSocketApi.apiId}.execute-api.${this.region}.amazonaws.com`;
+
     // Update Site Step function
     const cfnUpdateSiteStateMachine = new sfn.CfnStateMachine(
       this,
@@ -180,7 +182,7 @@ export class DreedLectureAppStack extends cdk.Stack {
         definitionString: updateSiteStateMachineDefinition,
         definitionSubstitutions: {
           TableName: connectionsTable.tableName,
-          WssEndpoint: webSocketApi.apiEndpoint,
+          WssEndpoint: wssApiEndpoint,
           WssStageName: wssStage.stageName,
           BucketName: bucket.bucketName,
         },
@@ -248,7 +250,6 @@ export class DreedLectureAppStack extends cdk.Stack {
     // Add EventBridge rule to trigger calculateStatsStateMachine on "report-ready" event
     const calculateStatsRule = new events.CfnRule(this, 'CalculateStatsRule', {
       eventBusName: eventBus.eventBusName,
-      roleArn: calculateStatsTriggerRole.roleArn,
       eventPattern: {
         source: ['survey-app'],
         detailType: ['result-generated'],
@@ -257,6 +258,7 @@ export class DreedLectureAppStack extends cdk.Stack {
         {
           arn: calculateStatsStateMachine.attrArn,
           id: 'CalculateStats',
+          roleArn: calculateStatsTriggerRole.roleArn,
         },
       ],
     });
@@ -280,7 +282,6 @@ export class DreedLectureAppStack extends cdk.Stack {
     // Add EventBridge rule to trigger update site state machine on "stats-updated" event
     const updateSiteRule = new events.CfnRule(this, 'UpdateSiteRule', {
       eventBusName: eventBus.eventBusName,
-      roleArn: updateSiteTriggerRole.roleArn,
       eventPattern: {
         source: ['survey-app'],
         detailType: ['stats-updated'],
@@ -289,6 +290,7 @@ export class DreedLectureAppStack extends cdk.Stack {
         {
           arn: cfnUpdateSiteStateMachine.attrArn,
           id: 'UpdateSite',
+          roleArn: updateSiteTriggerRole.roleArn,
         },
       ],
     });
