@@ -76,21 +76,36 @@
           },
           "HighlightComment": {
             "S.$": "$.HighlightComment"
+          },
+          "Sentiment": {
+            "S.$": "$.sentimentTask.Sentiment"
+          },
+          "PositiveScore": {
+            "N.$": "States.Format('{}', $.sentimentTask.SentimentScore.Positive)"
+          },
+          "NeutralScore": {
+            "N.$": "States.Format('{}', $.sentimentTask.SentimentScore.Neutral)"
+          },
+          "NegativeScore": {
+            "N.$": "States.Format('{}', $.sentimentTask.SentimentScore.Negative)"
+          },
+          "MixedScore": {
+            "N.$": "States.Format('{}', $.sentimentTask.SentimentScore.Mixed)"
           }
         }
       },
-      "Next": "EventBridge PutEvents"
+      "Next": "Raise: Result Generated"
     },
-    "EventBridge PutEvents": {
+    "Raise: Result Generated": {
       "Type": "Task",
       "Resource": "arn:aws:states:::events:putEvents",
       "Parameters": {
         "Entries": [
           {
             "Detail.$": "$",
-            "DetailType": "survey-processed",
+            "DetailType": "result-generated",
             "EventBusName": "${EventBusName}",
-            "Source": "doc-parser"
+            "Source": "survey-app"
           }
         ]
       },
