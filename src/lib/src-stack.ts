@@ -219,7 +219,7 @@ export class DreedLectureAppStack extends cdk.Stack {
           EventBusName: eventBus.eventBusName,
           CalculateStatsLambdaArn: calculateStatsLambda.functionArn,
         },
-        roleArn: processSurveySfnRole.roleArn,
+        roleArn: calculateStatsSfnRole.roleArn,
       },
     );
 
@@ -252,7 +252,7 @@ export class DreedLectureAppStack extends cdk.Stack {
       eventBusName: eventBus.eventBusName,
       eventPattern: {
         source: ['survey-app'],
-        detailType: ['result-generated'],
+        'detail-type': ['result-generated'],
       },
       targets: [
         {
@@ -284,7 +284,7 @@ export class DreedLectureAppStack extends cdk.Stack {
       eventBusName: eventBus.eventBusName,
       eventPattern: {
         source: ['survey-app'],
-        detailType: ['stats-updated'],
+        'detail-type': ['stats-updated'],
       },
       targets: [
         {
