@@ -262,7 +262,7 @@ export class DreedLectureAppStack extends cdk.Stack {
       eventBusName: eventBus.eventBusName,
       eventPattern: {
         source: ['survey-app'],
-        detailType: ['result-generated'],
+        'detail-type': ['result-generated'],
       },
       targets: [
         {
@@ -294,7 +294,7 @@ export class DreedLectureAppStack extends cdk.Stack {
       eventBusName: eventBus.eventBusName,
       eventPattern: {
         source: ['survey-app'],
-        detailType: ['stats-updated'],
+        'detail-type': ['stats-updated'],
       },
       targets: [
         {
