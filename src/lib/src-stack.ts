@@ -1,3 +1,4 @@
+import * as path from 'node:path';
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
@@ -9,6 +10,8 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as fs from 'fs';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as apigwv2 from '@aws-cdk/aws-apigatewayv2-alpha';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as cloudfront_origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import { WebSocketLambdaIntegration } from '@aws-cdk/aws-apigatewayv2-integrations-alpha';
 
 export class DreedLectureAppStack extends cdk.Stack {
@@ -186,6 +189,10 @@ export class DreedLectureAppStack extends cdk.Stack {
       ),
     });
 
+    new cdk.CfnOutput(this, 'WebsocketURL', {
+      value: `wss://${webSocketApi.apiId}.execute-api.${this.region}.amazonaws.com/${wssStage.stageName}`
+    });
+
     const wssApiEndpoint = `${webSocketApi.apiId}.execute-api.${this.region}.amazonaws.com`;
     webSocketApi.grantManageConnections(updateSiteSfnRole);
 
@@ -308,6 +315,52 @@ export class DreedLectureAppStack extends cdk.Stack {
           roleArn: updateSiteTriggerRole.roleArn,
         },
       ],
+    });
+
+    // static site resources
+    const siteBucket = new s3.Bucket(this, 'SiteBucket', {
+      publicReadAccess: false,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+    });
+
+    const cloudfrontOAI = new cloudfront.OriginAccessIdentity(this, 'cloudfront-OAI');
+
+    siteBucket.addToResourcePolicy(new iam.PolicyStatement({
+      actions: ['s3:GetObject'],
+      resources: [siteBucket.arnForObjects('*')],
+      principals: [new iam.CanonicalUserPrincipal(cloudfrontOAI.cloudFrontOriginAccessIdentityS3CanonicalUserId)]
+    }));
+
+    // CloudFront distribution
+    const distribution = new cloudfront.Distribution(this, 'SiteDistribution', {
+      defaultRootObject: "index.html",
+      minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2021,
+      errorResponses:[
+        {
+          httpStatus: 403,
+          responseHttpStatus: 403,
+          responsePagePath: '/error.html',
+          ttl: cdk.Duration.minutes(30),
+        }
+      ],
+      defaultBehavior: {
+        origin: new cloudfront_origins.S3Origin(siteBucket, {originAccessIdentity: cloudfrontOAI}),
+        compress: true,
+        allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+      }
+    })
+
+    new cdk.CfnOutput(this, 'DistributionURL', { value: distribution.domainName });
+
+    // Deploy site contents to S3 bucket
+    new s3deploy.BucketDeployment(this, 'DeployWithInvalidation', {
+      sources: [s3deploy.Source.asset(path.join(__dirname, '../frontend'))],
+      destinationBucket: siteBucket,
+      distribution,
+      distributionPaths: ['/*'],
     });
   }
 }
