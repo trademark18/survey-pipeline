@@ -1,0 +1,9 @@
+.float-container {
+    padding: 10px;
+}
+
+.float-child {
+    width: 46%;
+    float: left;
+    padding: 10px;
+}

@@ -4,6 +4,9 @@ const { generateSurvey } = require('./generateSurvey');
 
 const ddbDocClient = DynamoDBDocumentClient.from(new DynamoDBClient());
 
+const TableName =
+  'SurveyAppStack-ParsingPipelineConstructSurveyAppTable6C94B256-801X0R61KCX1';
+
 const surveys = [
   generateSurvey(),
   generateSurvey(),
@@ -12,11 +15,6 @@ const surveys = [
   generateSurvey(),
 ];
 
-surveys.map((s) => {
-  ddbDocClient.send(
-    new PutCommand({
-      TableName: 'DreedLectureAppStack-SurveyAppTableAD30E6A2-F5TZKCRHQIK5',
-      Item: s,
-    }),
-  );
+surveys.map((Item) => {
+  ddbDocClient.send(new PutCommand({ TableName, Item }));
 });
