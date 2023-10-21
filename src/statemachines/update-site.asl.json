@@ -39,7 +39,8 @@
       "ItemSelector": {
         "connectionId.$": "$$.Map.Item.Value.connectionId.S",
         "detail.$": "$.detail"
-      }
+      },
+      "ItemsPath": "$.Items"
     }
   }
 }

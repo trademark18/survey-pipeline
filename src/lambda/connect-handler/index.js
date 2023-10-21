@@ -1,10 +1,10 @@
-const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+const { DynamoDBClient, PutItemCommand } = require("@aws-sdk/client-dynamodb");
 const { EventBridgeClient, PutEventsCommand } = require("@aws-sdk/client-eventbridge");
 
 const db = new DynamoDBClient({});
 const eventBridgeClient = new EventBridgeClient({});
 
-export const handler = async (event) => {
+exports.handler = async (event) => {
   console.log(event);
 
   // 
