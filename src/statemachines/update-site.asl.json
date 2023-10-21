@@ -8,7 +8,8 @@
         "TableName": "${TableName}"
       },
       "Resource": "arn:aws:states:::aws-sdk:dynamodb:scan",
-      "Next": "Map"
+      "Next": "Map",
+      "ResultPath": "$.getConnectionIdsTask"
     },
     "Map": {
       "Type": "Map",
@@ -25,9 +26,9 @@
               "ApiEndpoint": "${WssEndpoint}",
               "Method": "POST",
               "Stage": "${WssStageName}",
-              "Path.$": "States.Format('/@connections/{}', $.connectionId.S)",
+              "Path.$": "States.Format('/@connections/{}', $.connectionId)",
               "RequestBody": {
-                "Payload.$": "$.detail"
+                "Payload.$": "$"
               },
               "AuthType": "IAM_ROLE"
             },
@@ -38,9 +39,9 @@
       "End": true,
       "ItemSelector": {
         "connectionId.$": "$$.Map.Item.Value.connectionId.S",
-        "detail.$": "$.detail"
+        "stats.$": "$.detail.Stats"
       },
-      "ItemsPath": "$.Items"
+      "ItemsPath": "$.getConnectionIdsTask.Items"
     }
   }
 }

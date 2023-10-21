@@ -84,11 +84,13 @@ export class DreedLectureAppStack extends cdk.Stack {
 
     surveyTable.grantWriteData(processSurveySfnRole);
     surveyTable.grantReadData(calculateStatsSfnRole);
-    calculateStatsSfnRole.addToPolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      actions: ['dynamodb:Scan'],
-      resources: [surveyTable.tableArn]
-    }));
+    calculateStatsSfnRole.addToPolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ['dynamodb:Scan'],
+        resources: [surveyTable.tableArn],
+      }),
+    );
 
     const connectionsTable = new dynamodb.Table(this, 'ConnectionsTable', {
       partitionKey: {
@@ -99,11 +101,13 @@ export class DreedLectureAppStack extends cdk.Stack {
     });
 
     connectionsTable.grantReadData(updateSiteSfnRole);
-    updateSiteSfnRole.addToPolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      actions: ['dynamodb:Scan'],
-      resources: [connectionsTable.tableArn]
-    }));
+    updateSiteSfnRole.addToPolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ['dynamodb:Scan'],
+        resources: [connectionsTable.tableArn],
+      }),
+    );
 
     // Event bus
     const eventBus = new events.EventBus(this, 'DreedSurveyAppEventBus', {});
@@ -183,6 +187,7 @@ export class DreedLectureAppStack extends cdk.Stack {
     });
 
     const wssApiEndpoint = `${webSocketApi.apiId}.execute-api.${this.region}.amazonaws.com`;
+    webSocketApi.grantManageConnections(updateSiteSfnRole);
 
     // Update Site Step function
     const cfnUpdateSiteStateMachine = new sfn.CfnStateMachine(
