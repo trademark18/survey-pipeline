@@ -84,6 +84,11 @@ export class DreedLectureAppStack extends cdk.Stack {
 
     surveyTable.grantWriteData(processSurveySfnRole);
     surveyTable.grantReadData(calculateStatsSfnRole);
+    calculateStatsSfnRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['dynamodb:Scan'],
+      resources: [surveyTable.tableArn]
+    }));
 
     const connectionsTable = new dynamodb.Table(this, 'ConnectionsTable', {
       partitionKey: {
@@ -94,6 +99,11 @@ export class DreedLectureAppStack extends cdk.Stack {
     });
 
     connectionsTable.grantReadData(updateSiteSfnRole);
+    updateSiteSfnRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['dynamodb:Scan'],
+      resources: [connectionsTable.tableArn]
+    }));
 
     // Event bus
     const eventBus = new events.EventBus(this, 'DreedSurveyAppEventBus', {});
@@ -219,7 +229,7 @@ export class DreedLectureAppStack extends cdk.Stack {
           EventBusName: eventBus.eventBusName,
           CalculateStatsLambdaArn: calculateStatsLambda.functionArn,
         },
-        roleArn: processSurveySfnRole.roleArn,
+        roleArn: calculateStatsSfnRole.roleArn,
       },
     );
 

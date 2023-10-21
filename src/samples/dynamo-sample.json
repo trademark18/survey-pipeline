@@ -1,0 +1,19 @@
+{
+    "pk": "Survey",
+    "sk": "1697834215195",
+    "CabinAccessibility": 5,
+    "CabinCleanliness": 4,
+    "Email": "dannyreed@outlook.com",
+    "FoodQuality": 3,
+    "HighlightComment": "I found the session on forgiveness very helpful.",
+    "MixedScore": 0.0317418,
+    "Name": "Danny Reed",
+    "NegativeScore": 0.0013068004,
+    "NeutralScore": 0.00359539,
+    "OverallComment": "It was not bad overall. I think with a couple years of practice this will become an excellent event.",
+    "PositiveScore": 0.9633561,
+    "Sentiment": "POSITIVE",
+    "SessionLength": 4,
+    "SpeakerChoice": 5,
+    "Topics": 5
+}
