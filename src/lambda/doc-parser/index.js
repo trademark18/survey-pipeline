@@ -21,23 +21,14 @@ exports.handler = async (event) => {
       return textractDocument.form.getFieldByKey(key)?.value?.text;
     }
 
-    const getIntValue = (key) => {
-      const rawVal = getFormValue(key);
-      try {
-        return parseInt(rawVal);
-      } catch (error) {
-        console.error(error);
-        console.error(`Could not parse integer from input ${rawVal}`);
-        return undefined;
-      }
-    }
-
     // Use this to print out the detected fields and their values
     // for (const field of textractDocument.form.iterFields()) {
     //   console.log(`${field?.key.text}: ${field?.value?.text}`);
     // }
 
     const result = {
+      Event: getFormValue('Event name:'),
+      SurveyNumber: getFormValue('Survey Number:'),
       Name: getFormValue('Name:'),
       Email: getFormValue('Email:'),
       FoodQuality: getFormValue('Food quality'),
@@ -53,8 +44,8 @@ exports.handler = async (event) => {
       }
     };
 
-    console.log(result); // Updated code!
-  
+    console.log(result);
+
     return result;
   } catch (error) {
     console.error(error);

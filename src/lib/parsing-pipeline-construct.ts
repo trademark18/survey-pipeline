@@ -47,7 +47,7 @@ export class ParsingPipelineConstruct extends Construct {
       timeout: cdk.Duration.seconds(30),
       environment: {
         BUCKET_NAME: params.sourceBucket.bucketName,
-        key: 'RetreatSurvey.jpg',
+        key: 'NegativeSurvey.jpg',
       },
       initialPolicy: [textractPolicy],
     });

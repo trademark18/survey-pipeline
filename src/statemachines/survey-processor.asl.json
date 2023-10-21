@@ -42,9 +42,12 @@
         "TableName": "${TableName}",
         "Item": {
           "pk": {
-            "S": "Survey"
+            "S.$": "$.Event"
           },
           "sk": {
+            "S.$": "$.SurveyNumber"
+          },
+          "ProcessedAt": {
             "S.$": "$.metadata.timestamp"
           },
           "Name": {
