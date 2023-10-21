@@ -1,12 +1,12 @@
-const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+const { DynamoDBClient, ScanCommand } = require("@aws-sdk/client-dynamodb");
 
 const ddb = new DynamoDBClient({});
 
 exports.handler = async (event, context) => {
 
-  const data = await ddb.scan({
+  const data = await ddb.send(new ScanCommand({
     TableName: process.env.SurveyTableName,
-  });
+  }));
 
   const foodSum = data.Items.reduce((acc, item) => {
     return acc + Number(item.FoodQuality.N);

@@ -1,13 +1,13 @@
-const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+const { DynamoDBClient, DeleteItemCommand } = require("@aws-sdk/client-dynamodb");
 
 const db = new DynamoDBClient({});
 
-export const handler = async (event) => {
+exports.handler = async (event) => {
   console.log(event);
 
   const dbResult = await db.send(new DeleteItemCommand({
     TableName: process.env.TableName,
-    Item: {
+    Key: {
       connectionId: { S: event.requestContext.connectionId },
     }
   }));
