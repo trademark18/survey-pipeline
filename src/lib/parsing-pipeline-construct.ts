@@ -6,10 +6,12 @@ import * as fs from 'fs';
 import * as events from 'aws-cdk-lib/aws-events';
 import { Construct } from 'constructs';
 import * as cdk from 'aws-cdk-lib';
+import * as pipes from 'aws-cdk-lib/aws-pipes';
 
 export interface IParsingPipelineParams {
   readonly sourceBucket: cdk.aws_s3.Bucket;
   readonly eventBus: cdk.aws_events.EventBus;
+  readonly ingestQueue: cdk.aws_sqs.Queue;
 }
 
 export class ParsingPipelineConstruct extends Construct {
@@ -106,6 +108,47 @@ export class ParsingPipelineConstruct extends Construct {
         roleArn: processSurveySfnRole.roleArn,
       },
     );
+
+    // Role for the Pipe
+    const pipeRole = new iam.Role(this, 'PipeRole', {
+      assumedBy: new iam.ServicePrincipal('pipes.amazonaws.com'),
+      inlinePolicies: {
+        StepFunctionsPolicy: new iam.PolicyDocument({
+          statements: [
+            new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: ['states:StartExecution'],
+              resources: [processSurveySfn.attrArn],
+            }),
+          ],
+        }),
+        SqsPolicy: new iam.PolicyDocument({
+          statements: [
+            new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: [
+                'sqs:ReceiveMessage',
+                'sqs:DeleteMessage',
+                'sqs:GetQueueAttributes',
+              ],
+              resources: [params.ingestQueue.queueArn],
+            }),
+          ],
+        }),
+      },
+    });
+
+    // Create an EventBridge Pipe that hooks a step function to the ingest queue
+    new pipes.CfnPipe(this, 'IngestPipe', {
+      source: params.ingestQueue.queueArn,
+      target: processSurveySfn.attrArn,
+      targetParameters: {
+        stepFunctionStateMachineParameters: {
+          invocationType: 'FIRE_AND_FORGET',
+        },
+      },
+      roleArn: pipeRole.roleArn,
+    });
 
     // Calculate stats step function
     const calculateStatsStateMachineDefinition = fs

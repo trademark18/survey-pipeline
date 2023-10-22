@@ -10,17 +10,21 @@ export class SurveyAppStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // Event bus (shared across several constructs)
+    // Resources shared across several constructs
     const eventBus = new events.EventBus(this, 'SurveyAppEventBus', {});
+    const ingestQueue = new cdk.aws_sqs.Queue(this, 'IngestQueue', {});
 
     // Ingest construct
-    const ingestConstruct = new IngestConstruct(this, 'IngestConstruct');
+    const ingestConstruct = new IngestConstruct(this, 'IngestConstruct', {
+      ingestQueue,
+    });
     const ingestBucket = ingestConstruct.getIngestBucket();
 
     // Parsing pipeine construct
     new ParsingPipelineConstruct(this, 'ParsingPipelineConstruct', {
       sourceBucket: ingestBucket,
       eventBus,
+      ingestQueue,
     });
 
     // Websockets construct
