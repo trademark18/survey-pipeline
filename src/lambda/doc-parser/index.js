@@ -8,8 +8,8 @@ exports.handler = async (event) => {
     const textractResponse = await textract.send(new AnalyzeDocumentCommand({
       Document: {
         S3Object: {
-          Bucket: process.env.BUCKET_NAME,
-          Name: process.env.key
+          Bucket: event.bucketName,
+          Name: event.key
         }
       },
       FeatureTypes: ["FORMS"]

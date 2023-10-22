@@ -1,13 +1,23 @@
 {
   "Comment": "A description of my state machine",
-  "StartAt": "Lambda Invoke",
+  "StartAt": "Unwrap Event",
   "States": {
-    "Lambda Invoke": {
+    "Unwrap Event": {
+      "Type": "Pass",
+      "Next": "Parse Image",
+      "Parameters": {
+        "s3Event.$": "States.StringToJson($[0].body)"
+      }
+    },
+    "Parse Image": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "OutputPath": "$.Payload",
       "Parameters": {
-        "Payload.$": "$",
+        "Payload": {
+          "bucketName.$": "$.s3Event.Records[0].s3.bucket.name",
+          "key.$": "$.s3Event.Records[0].s3.object.key"
+        },
         "FunctionName": "${DocParserLambda}"
       },
       "Retry": [
