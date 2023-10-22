@@ -94,6 +94,7 @@ export class WssConstruct extends Construct {
       value: `wss://${webSocketApi.apiId}.execute-api.${
         cdk.Stack.of(this).region
       }.amazonaws.com/${wssStage.stageName}`,
+      exportName: 'WebsocketURL',
     });
 
     const wssApiEndpoint = `${webSocketApi.apiId}.execute-api.${

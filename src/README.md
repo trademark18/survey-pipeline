@@ -1,14 +1,7 @@
-# Welcome to your CDK TypeScript project
+# Survey Pipeline App
 
-This is a blank project for CDK development with TypeScript.
+## Deployment
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
+To deploy the app, run the following command from the src directory:
 
-## Useful commands
-
-* `npm run build`   compile typescript to js
-* `npm run watch`   watch for changes and compile
-* `npm run test`    perform the jest unit tests
-* `cdk deploy`      deploy this stack to your default AWS account/region
-* `cdk diff`        compare deployed stack with current state
-* `cdk synth`       emits the synthesized CloudFormation template
+`npm run deploy <aws profile name>`

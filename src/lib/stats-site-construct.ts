@@ -66,6 +66,11 @@ export class StatsSiteConstruct extends Construct {
       value: distribution.domainName,
     });
 
+    new cdk.CfnOutput(this, 'BucketName', {
+      value: siteBucket.bucketName,
+      exportName: 'BucketName',
+    });
+
     // Deploy site contents to S3 bucket
     new s3deploy.BucketDeployment(this, 'DeployWithInvalidation', {
       sources: [s3deploy.Source.asset(path.join(__dirname, '../frontend'))],
