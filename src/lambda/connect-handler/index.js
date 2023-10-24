@@ -1,8 +1,9 @@
+const AWSXRay = require('aws-xray-sdk');
 const { DynamoDBClient, PutItemCommand } = require("@aws-sdk/client-dynamodb");
 const { EventBridgeClient, PutEventsCommand } = require("@aws-sdk/client-eventbridge");
 
-const db = new DynamoDBClient({});
-const eventBridgeClient = new EventBridgeClient({});
+const db = AWSXRay.captureAWSv3Client(new DynamoDBClient({}));
+const eventBridgeClient = AWSXRay.captureAWSv3Client(new EventBridgeClient({}));
 
 exports.handler = async (event) => {
   console.log(event);

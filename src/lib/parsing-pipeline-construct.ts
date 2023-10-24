@@ -18,9 +18,25 @@ export class ParsingPipelineConstruct extends Construct {
   constructor(scope: Construct, id: string, params: IParsingPipelineParams) {
     super(scope, id);
 
+    const xraySfnPolicy = new iam.ManagedPolicy(this, 'XraySfnPolicy', {
+      statements: [
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          actions: [
+            'xray:PutTraceSegments',
+            'xray:PutTelemetryRecords',
+            'xray:GetSamplingRules',
+            'xray:GetSamplingTargets',
+          ],
+          resources: ['*'],
+        }),
+      ],
+    });
+
     // Create a state machine role that will allow invoking the lambda defined above and writing to the ddb table defined above
     const processSurveySfnRole = new iam.Role(this, 'StateMachineRole', {
       assumedBy: new iam.ServicePrincipal('states.amazonaws.com'),
+      managedPolicies: [xraySfnPolicy],
       inlinePolicies: {
         ComprehendPolicy: new iam.PolicyDocument({
           statements: [
@@ -47,6 +63,7 @@ export class ParsingPipelineConstruct extends Construct {
       handler: 'index.handler',
       code: lambda.Code.fromAsset('lambda/doc-parser'),
       timeout: cdk.Duration.seconds(30),
+      tracing: lambda.Tracing.ACTIVE,
       environment: {
         BUCKET_NAME: params.sourceBucket.bucketName,
         key: 'NegativeSurvey.jpg',
@@ -56,6 +73,7 @@ export class ParsingPipelineConstruct extends Construct {
 
     // Update permissions
     docParserLambda.grantInvoke(processSurveySfnRole);
+
     params.sourceBucket.grantRead(docParserLambda);
 
     // Calculate stats step function role
@@ -63,6 +81,7 @@ export class ParsingPipelineConstruct extends Construct {
       this,
       'CalculateStatsStateMachineRole',
       {
+        managedPolicies: [xraySfnPolicy],
         assumedBy: new iam.ServicePrincipal('states.amazonaws.com'),
       },
     );
@@ -106,6 +125,9 @@ export class ParsingPipelineConstruct extends Construct {
           EventBusName: params.eventBus.eventBusName,
         },
         roleArn: processSurveySfnRole.roleArn,
+        tracingConfiguration: {
+          enabled: true,
+        },
       },
     );
 
@@ -166,6 +188,7 @@ export class ParsingPipelineConstruct extends Construct {
         environment: {
           SurveyTableName: surveyTable.tableName,
         },
+        tracing: lambda.Tracing.ACTIVE,
       },
     );
 
@@ -180,6 +203,9 @@ export class ParsingPipelineConstruct extends Construct {
           CalculateStatsLambdaArn: calculateStatsLambda.functionArn,
         },
         roleArn: calculateStatsSfnRole.roleArn,
+        tracingConfiguration: {
+          enabled: true,
+        },
       },
     );
 

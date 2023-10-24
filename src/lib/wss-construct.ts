@@ -17,8 +17,24 @@ export class WssConstruct extends Construct {
   constructor(scope: Construct, id: string, params: IWssParams) {
     super(scope, id);
 
+    const xraySfnPolicy = new iam.ManagedPolicy(this, 'XraySfnPolicy', {
+      statements: [
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          actions: [
+            'xray:PutTraceSegments',
+            'xray:PutTelemetryRecords',
+            'xray:GetSamplingRules',
+            'xray:GetSamplingTargets',
+          ],
+          resources: ['*'],
+        }),
+      ],
+    });
+
     const updateSiteSfnRole = new iam.Role(this, 'UpdateSiteStateMachineRole', {
       assumedBy: new iam.ServicePrincipal('states.amazonaws.com'),
+      managedPolicies: [xraySfnPolicy],
     });
 
     const connectionsTable = new dynamodb.Table(this, 'ConnectionsTable', {
@@ -52,6 +68,7 @@ export class WssConstruct extends Construct {
         TableName: connectionsTable.tableName,
         EventBusName: params.eventBus.eventBusName,
       },
+      tracing: lambda.Tracing.ACTIVE,
     });
 
     params.eventBus.grantPutEventsTo(connectHandler);
@@ -64,6 +81,7 @@ export class WssConstruct extends Construct {
       environment: {
         TableName: connectionsTable.tableName,
       },
+      tracing: lambda.Tracing.ACTIVE,
     });
 
     connectionsTable.grantWriteData(connectHandler);
@@ -114,6 +132,9 @@ export class WssConstruct extends Construct {
           WssStageName: wssStage.stageName,
         },
         roleArn: updateSiteSfnRole.roleArn,
+        tracingConfiguration: {
+          enabled: true,
+        },
       },
     );
 

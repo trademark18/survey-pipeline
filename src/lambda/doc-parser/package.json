@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "@aws-sdk/client-textract": "^3.427.0",
-    "amazon-textract-response-parser": "^0.3.1"
+    "amazon-textract-response-parser": "^0.3.1",
+    "aws-xray-sdk": "^3.5.2"
   }
 }

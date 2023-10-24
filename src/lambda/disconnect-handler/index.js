@@ -1,6 +1,7 @@
+const AWSXRay = require('aws-xray-sdk');
 const { DynamoDBClient, DeleteItemCommand } = require("@aws-sdk/client-dynamodb");
 
-const db = new DynamoDBClient({});
+const db = AWSXRay.captureAWSv3Client(new DynamoDBClient({}));
 
 exports.handler = async (event) => {
   console.log(event);

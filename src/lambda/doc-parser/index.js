@@ -1,7 +1,8 @@
+const AWSXRay = require('aws-xray-sdk');
 const { TextractClient, AnalyzeDocumentCommand } = require("@aws-sdk/client-textract");
 const { TextractDocument } = require('amazon-textract-response-parser');
 
-const textract = new TextractClient();
+const textract = AWSXRay.captureAWSv3Client(new TextractClient());
 
 exports.handler = async (event) => {
   try {
