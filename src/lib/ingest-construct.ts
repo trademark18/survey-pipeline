@@ -4,6 +4,7 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 
 interface IIngestParams {
   readonly ingestQueue: cdk.aws_sqs.Queue;
@@ -16,40 +17,40 @@ export class IngestConstruct extends Construct {
     // S3 Bucket
     const bucket = new s3.Bucket(this, 'ingestBucket', {});
 
-    //IAM User
-    const user = new iam.User(this, 'IngestUser');
-    const accessKey = new iam.AccessKey(this, 'AccessKey', { user });
-
-    const policy = new iam.Policy(this, 'IngestUploadPolicy', {
+    const managedPolicy = new iam.ManagedPolicy(this, 'IngestUploadPolicy', {
       statements: [
         new iam.PolicyStatement({
-          actions: ['s3:PutObject'],
-          resources: [`${bucket.bucketArn}/*`],
+          actions: ['s3:PutObject', 's3:ListBucket', 's3:DeleteObject'],
+          resources: [`${bucket.bucketArn}/*`, bucket.bucketArn],
         }),
       ],
     });
 
-    user.attachInlinePolicy(policy);
-
-
-
-    // Output the Access Key ID and Secret Access Key
-    new cdk.CfnOutput(this, 'AccessKeyIdOutput', {
-      value: accessKey.accessKeyId,
+    //IAM User
+    const user = new iam.User(this, 'IngestUser', {
+      managedPolicies: [managedPolicy],
     });
-    new cdk.CfnOutput(this, 'SecretAccessKeyOutput', {
-      value: accessKey.secretAccessKey.unsafeUnwrap(),
+
+    // Output the username
+    new cdk.CfnOutput(this, 'IngestUserUsername', {
+      value: user.userName,
+    });
+
+    new cdk.CfnOutput(this, 'IngestUserInstructions', {
+      value: `Create an access key for the ingest user here: https://${
+        cdk.Stack.of(this).region
+      }.console.${cdk.Stack.of(this).partition}.amazon.com/iamv2/home?region=${
+        cdk.Stack.of(this).region
+      }#/users/details/${user.userName}?section=security_credentials`,
     });
 
     // Output Ingest Bucket Information
     new cdk.CfnOutput(this, 'IngestBucketEndpoint', {
-      value: bucket.bucketDomainName
-    })
+      value: `s3.${cdk.Stack.of(this).region}.amazonaws.com`,
+    });
     new cdk.CfnOutput(this, 'IngestBucketName', {
-      value: bucket.bucketName
-    })
-
-    
+      value: bucket.bucketName,
+    });
 
     // Load S3 bucket with example files
     // new s3deploy.BucketDeployment(this, 'DeployFiles', {
